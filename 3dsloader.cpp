@@ -16,11 +16,16 @@
 #define VERTICES_CHUNK_ID 0x4110
 #define FACES_CHUNK_ID 0x4120
 
+/*sizeof(ChunkHeader) is 8 because of machine alignment 
+ * Must manually code that instead of just reading the
+ * header into such a header
+ */
 struct ChunkHeader{
   unsigned short chunkId;
   unsigned int chunkLength;
 };
 
+/* Stores a 3d vector */
 struct Vector3f{
   float x,y,z;
 };
@@ -32,16 +37,29 @@ struct My3DObject{
   unsigned short *indices;
 };
 
+/* Function readChunkHeader()
+ * ---------------------------
+ * Parse the first 6 bytes of a chunk's header into the appropriate filed
+ * of a ChunkHeader structure
+ * File pointer must be at the beginning of a chunk.
+ * fread(&chunkHeader,sizeof(ChunkHeader),1,file) introduces a bug 
+ * because of machine memory alignment requirements size of the header being 6 
+ * and ChunkHeader structure ending up being 8 bytes long. 
+ * Each field must thus be read individually.
+ */
 ChunkHeader readChunkHeader(FILE* file){
   ChunkHeader ch;
-  //printf("Sizeof chunk header is: %d\n",sizeof(ChunkHeader));
-  //printf("Sizeof unsigned short is: %d\n",sizeof(unsigned short));
-  //printf("Sizeof unsigned int is: %d\n",sizeof(unsigned int));
   fread(&ch.chunkId,sizeof(unsigned short),1,file);
   fread(&ch.chunkLength,sizeof(unsigned int),1,file);
   return ch;
 }
 
+
+/* Function filelength
+ *-----------------------
+ * Return the size of a file.
+ * ??? maybe it shoud return a double for larger file lengths ????
+ */
 unsigned int filelength(FILE* file){
   fseek(file,0,SEEK_END);
   unsigned int length=ftell(file);
@@ -49,6 +67,12 @@ unsigned int filelength(FILE* file){
   return length;
 }
 
+/* Function readChunks()
+ *----------------------
+ * Read a 3ds file and construct 3d objects form the chunks
+ * Objects are added to the queue objects for later processing.
+ * Information about the file and chunks is printed as the file is read.
+ */
 int readChunks(const char *filename,std::queue<My3DObject> &objects){
   FILE *dsfile;
   if((dsfile=fopen(filename,"rb"))==NULL) return 0;
@@ -128,7 +152,10 @@ int readChunks(const char *filename,std::queue<My3DObject> &objects){
 int main(){
   std::string modelfile="Car.3DS";
   std::queue<My3DObject> *objects=new std::queue<My3DObject>;
-  readChunks(modelfile.c_str(),*objects);
+  if(readChunks(modelfile.c_str(),*objects)==0){
+    printf("Error reading %s file. Make sure it exists and has the right format.",modelfile.c_str());
+    return 1;
+  }
   while(!objects->empty()){
     My3DObject current=(My3DObject) objects->front();
     printf("Object %s - %d vertices %d faces \n",current.name.c_str(),current.no_vertices,current.no_faces);
@@ -136,5 +163,5 @@ int main(){
     delete[] current.indices;
     objects->pop();
   }
-  return 1;
+  return 0;
 }
