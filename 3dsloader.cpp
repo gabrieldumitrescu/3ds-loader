@@ -18,7 +18,7 @@
 
 /*sizeof(ChunkHeader) is 8 because of machine alignment 
  * Must manually code that instead of just reading the
- * header into such a header
+ * header into such a structure
  */
 struct ChunkHeader{
   unsigned short chunkId;
